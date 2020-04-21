@@ -1,8 +1,8 @@
 'use strict';
 
-const { dialogflow, SignIn } = require('actions-on-google');
+const { dialogflow, SignIn, BasicCard, Image, Suggestions } = require('actions-on-google');
 const functions = require('firebase-functions');
-const { SimpleResponse, BasicCard, Image } = require('dialogflow-fulfillment');
+const { SimpleResponse,  } = require('dialogflow-fulfillment');
 
 const app = dialogflow({
   clientId: '596655066542-3rl4j8of2gt610roab8dg4vo1b8h189r.apps.googleusercontent.com',
@@ -11,7 +11,14 @@ const app = dialogflow({
 process.env.DEBUG = 'dialogflow:debug'; // enables lib debugging statements
 app.intent('Default Welcome Intent', (conv) => {
   // Do things
-  conv.ask('Welcome, maxflow user');
+  const payload = conv.user.profile.payload;
+  if (payload) {
+    console.log(conv.user.profile.token); // jw token
+  	conv.ask('Welcome, maxflow user');
+  } else {
+   	conv.ask(`You have not signed in yet. Call "sign in" to sign in`);
+    conv.ask(new Suggestions('sign in')); 
+  }
 });
 
 // Intent that starts the account linking flow.
@@ -26,7 +33,7 @@ app.intent("Show Me", conv => {
     speech: "This is your detail information",
     text: "This is your detail information"
   }));
-  conv.ask(new BasicCard({    
+  conv.ask(new BasicCard([{    
     text: `Email: ${email}\nName: ${name}`,
     title: `Your Infomation`,
     image: new Image({
@@ -34,7 +41,7 @@ app.intent("Show Me", conv => {
       alt: 'Image alternate text',
     }),
     display: 'CROPPED',
-  })
+  }])
   );
 });
 
