@@ -1,8 +1,7 @@
 'use strict';
 
-const { dialogflow, SignIn, BasicCard, Image, Suggestions } = require('actions-on-google');
+const { dialogflow, SimpleResponse, SignIn, BasicCard, Image, Suggestions } = require('actions-on-google');
 const functions = require('firebase-functions');
-const { SimpleResponse,  } = require('dialogflow-fulfillment');
 
 const app = dialogflow({
   clientId: '596655066542-3rl4j8of2gt610roab8dg4vo1b8h189r.apps.googleusercontent.com',
