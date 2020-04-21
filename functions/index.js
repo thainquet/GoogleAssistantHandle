@@ -2,7 +2,7 @@
 
 const { dialogflow, SignIn } = require('actions-on-google');
 const functions = require('firebase-functions');
-const { Suggestion, BasicCard, Image } = require('dialogflow-fulfillment');
+const { SimpleResponse, BasicCard, Image } = require('dialogflow-fulfillment');
 
 const app = dialogflow({
   clientId: '596655066542-3rl4j8of2gt610roab8dg4vo1b8h189r.apps.googleusercontent.com',
@@ -21,13 +21,27 @@ app.intent('Start Sign-in', (conv) => {
 
 app.intent("Show Me", conv => {
   const payload = conv.user.profile.payload;
-  let email = payload.email;
-  conv.ask(`your email: ${email}`);
+  let { email, name, picture } = payload;
+  conv.ask(new SimpleResponse({
+    speech: "This is your detail information",
+    text: "This is your detail information"
+  }));
+  conv.ask(new BasicCard({    
+    text: `Email: ${email}\nName: ${name}`,
+    title: `Your Infomation`,
+    image: new Image({
+      url: picture,
+      alt: 'Image alternate text',
+    }),
+    display: 'CROPPED',
+  })
+  );
 });
 
-app.intent("Run Workflow", conv => {
+app.intent("Run Workflow", (conv, { workflowName }) => {
   const payload = conv.user.profile.payload;
   let email = payload.email;
+  conv.ask(`you choose ${workflowName}`);
   // do sth
 });
 
