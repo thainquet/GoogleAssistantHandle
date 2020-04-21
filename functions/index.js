@@ -33,7 +33,7 @@ app.intent("Show Me", conv => {
     speech: "This is your detail information",
     text: "This is your detail information"
   }));
-  conv.ask(new BasicCard([{    
+  conv.ask(new BasicCard({    
     text: `Email: ${email}\nName: ${name}`,
     title: `Your Infomation`,
     image: new Image({
@@ -41,7 +41,7 @@ app.intent("Show Me", conv => {
       alt: 'Image alternate text',
     }),
     display: 'CROPPED',
-  }])
+  })
   );
 });
 
