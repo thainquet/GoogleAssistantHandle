@@ -65,7 +65,10 @@ app.intent("Get Workflow List", conv => {
          url: 'https://encrypt-maxflow.herokuapp.com/encrypt',
          data: JSON.stringify({
            "email": email            
-         })
+         }),
+         httpsAgent: new https.Agent({
+          rejectUnauthorized: false
+        })
         }).then(res => {
     let code = res.data;
     axios({
