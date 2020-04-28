@@ -2,6 +2,7 @@
 
 const { dialogflow, SimpleResponse, SignIn, BasicCard, Image, Suggestions } = require('actions-on-google');
 const functions = require('firebase-functions');
+const axios = require('axios');
 
 const app = dialogflow({
   clientId: '596655066542-3rl4j8of2gt610roab8dg4vo1b8h189r.apps.googleusercontent.com',
@@ -22,7 +23,12 @@ app.intent('Default Welcome Intent', (conv) => {
 
 // Intent that starts the account linking flow.
 app.intent('Start Sign-in', (conv) => {
-  conv.ask(new SignIn('To get your account details'));
+  const payload = conv.user.profile.payload;
+  if (payload) {
+  	conv.ask(`You signed in as ${payload.name}!`);
+  } else {
+    conv.ask(new SignIn('To get your account details'));
+  }
 });
 
 app.intent("Show Me", conv => {
@@ -54,6 +60,23 @@ app.intent("Run Workflow", (conv, { workflowName }) => {
 app.intent("Get Workflow List", conv => {
   const payload = conv.user.profile.payload;
   let email = payload.email;
+  axios({
+    	 method: 'POST',
+         url: 'https://encrypt-maxflow.herokuapp.com/encrypt',
+         data: JSON.stringify({
+           "email": email            
+         })
+        }).then(res => {
+    let code = res.data;
+    axios({
+            method: 'POST',
+            url: 'https://maxflow.app/api/virtual-assistant',
+            data: JSON.stringify({
+                "code": code            
+            })
+          })
+    .then(res => console.log(res.data.data));
+        });
   conv.ask("note, thai 1");
 });
 
