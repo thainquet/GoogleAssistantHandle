@@ -1,8 +1,9 @@
 const https = require('https');
 const http = require('http');
 const axios = require('axios');
+const fetch = require('node-fetch');
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 
 axios({
         method: 'POST',
@@ -12,21 +13,25 @@ axios({
         })
    })
 .then(res => {
-                // console.log(res.data.code)
+                console.log(res.data.code)
                 let code = res.data.code;
-                axios({
-                        method: 'POST',
-                        url: 'https://maxflow.app/api/virtual-assistant',
-                        data: JSON.stringify({
-                            "code": code            
-                        }),
-                        httpsAgent: new https.Agent({
-                            rejectUnauthorized: false
-                        }),
-                        httpsAgent: new https.Agent({
-                            rejectUnauthorized: false
-                        })
+                fetch('https://maxflow.app/api/virtual-assistant', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        "code": code
+                    }),
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        let list = data.data;
+                  		let mesg = '';
+                        list.forEach(i => mesg += i + ',');
+                        console.log(mesg.substring(0, mesg.length-1));  
                     })
-                .then(res => console.log(res.data))
-                // .catch(err => console.log("error"));
+                    .catch((error) => {
+                        console.error('Error:', error);
+                    });
    });
