@@ -1,13 +1,35 @@
+const functions = require('firebase-functions');
+
+// // Create and Deploy Your First Cloud Functions
+// // https://firebase.google.com/docs/functions/write-firebase-functions
+//
+// exports.helloWorld = functions.https.onRequest((request, response) => {
+//  response.send("Hello from Firebase!");
+// });
 'use strict';
 
 const { dialogflow, SimpleResponse, SignIn, BasicCard, Image, Suggestions } = require('actions-on-google');
 const functions = require('firebase-functions');
 const axios = require('axios');
+const https = require('https');
+const fetch = require('node-fetch');
+const crypto = require('crypto');
+
+const PUBLICKEY = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtmJ5ebgT7ieQq+0qyRb4
+08SkD7DmRjiJX9BhbJuPerDSc/+rxmsXAfZfKJAGkv5YCSyIf2z4cptsygwQkE75
++lggyE38zerXZWKVmiVqol3guSc2n52wuQA0hMCmmk7H0aBnLDGiaG60m5Zqy4IY
+NBCc2oAhOPtKJ2oSBLo4pn26jdTwzaWCSsxV6+H43mZkooTWOHUg5hEhWl2JpJmq
+lkfGWSrcN1auviI8pxtuvEQNzRtrAHcwbOJcGrCEyUk8gb67wv1KgHbgCklwtWtw
+kWcUVYmrvnzKzLrGL/rs0kxrq52EBlsbisKA3hBkIQYOfflKJ1FNuk0f14Hpv+Vl
+ZwIDAQAB
+-----END PUBLIC KEY-----`
 
 const app = dialogflow({
   clientId: '596655066542-3rl4j8of2gt610roab8dg4vo1b8h189r.apps.googleusercontent.com',
   debug: true
 });
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 process.env.DEBUG = 'dialogflow:debug'; // enables lib debugging statements
 app.intent('Default Welcome Intent', (conv) => {
   // Do things
@@ -57,30 +79,42 @@ app.intent("Run Workflow", (conv, { workflowName }) => {
   // do sth
 });
 
-app.intent("Get Workflow List", conv => {
+app.intent("Get Workflow List", async (conv) => {
   const payload = conv.user.profile.payload;
-  let email = payload.email;
+  const email = payload.email;
+  const code = crypto.publicEncrypt(PUBLICKEY, Buffer.from(email)).toString('base64')
+  console.log(code)
   axios({
-    	 method: 'POST',
-         url: 'https://encrypt-maxflow.herokuapp.com/encrypt',
-         data: JSON.stringify({
-           "email": email            
-         }),
-         httpsAgent: new https.Agent({
-          rejectUnauthorized: false
+        method: 'POST',
+        url: 'https://encrypt-maxflow.herokuapp.com/encrypt',
+        data: JSON.stringify({
+        "email": 'thainq00@gmail.com'            
         })
-        }).then(res => {
-    let code = res.data;
-    axios({
-            method: 'POST',
-            url: 'https://maxflow.app/api/virtual-assistant',
-            data: JSON.stringify({
-                "code": code            
-            })
-          })
-    .then(res => console.log(res.data.data));
-        });
-  conv.ask("note, thai 1");
+   })
+.then(res => {
+                console.log(res.data.code);
+                let code = res.data.code;
+                fetch('https://maxflow.app/api/virtual-assistant', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        "code": code
+                    }),
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        let list = data.data;
+                  		let mesg = '';
+                        list.forEach(i => mesg += i + ',');
+                        return conv.ask(mesg.substring(0, mesg.length-1)); 
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                    });
+   });
+  // conv.ask("note, thai 1");
 });
 
 app.intent("Get Workflow Status", conv => {
