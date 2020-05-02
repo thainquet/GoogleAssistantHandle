@@ -1,17 +1,7 @@
-const functions = require('firebase-functions');
-
-// // Create and Deploy Your First Cloud Functions
-// // https://firebase.google.com/docs/functions/write-firebase-functions
-//
-// exports.helloWorld = functions.https.onRequest((request, response) => {
-//  response.send("Hello from Firebase!");
-// });
 'use strict';
 
 const { dialogflow, SimpleResponse, SignIn, BasicCard, Image, Suggestions } = require('actions-on-google');
 const functions = require('firebase-functions');
-const axios = require('axios');
-const https = require('https');
 const fetch = require('node-fetch');
 const crypto = require('crypto');
 
@@ -23,7 +13,7 @@ NBCc2oAhOPtKJ2oSBLo4pn26jdTwzaWCSsxV6+H43mZkooTWOHUg5hEhWl2JpJmq
 lkfGWSrcN1auviI8pxtuvEQNzRtrAHcwbOJcGrCEyUk8gb67wv1KgHbgCklwtWtw
 kWcUVYmrvnzKzLrGL/rs0kxrq52EBlsbisKA3hBkIQYOfflKJ1FNuk0f14Hpv+Vl
 ZwIDAQAB
------END PUBLIC KEY-----`
+-----END PUBLIC KEY-----`;
 
 const app = dialogflow({
   clientId: '596655066542-3rl4j8of2gt610roab8dg4vo1b8h189r.apps.googleusercontent.com',
@@ -36,10 +26,10 @@ app.intent('Default Welcome Intent', (conv) => {
   const payload = conv.user.profile.payload;
   if (payload) {
     console.log(conv.user.profile.token); // jw token
-  	conv.ask('Welcome, maxflow user');
+    conv.ask('Welcome, maxflow user');
   } else {
-   	conv.ask(`You have not signed in yet. Call "sign in" to sign in`);
-    conv.ask(new Suggestions('sign in')); 
+    conv.ask(`You have not signed in yet. Call "sign in" to sign in`);
+    conv.ask(new Suggestions('sign in'));
   }
 });
 
@@ -47,7 +37,7 @@ app.intent('Default Welcome Intent', (conv) => {
 app.intent('Start Sign-in', (conv) => {
   const payload = conv.user.profile.payload;
   if (payload) {
-  	conv.ask(`You signed in as ${payload.name}!`);
+    conv.ask(`You signed in as ${payload.name}!`);
   } else {
     conv.ask(new SignIn('To get your account details'));
   }
@@ -60,7 +50,7 @@ app.intent("Show Me", conv => {
     speech: "This is your detail information",
     text: "This is your detail information"
   }));
-  conv.ask(new BasicCard({    
+  conv.ask(new BasicCard({
     text: `Email: ${email}\nName: ${name}`,
     title: `Your Infomation`,
     image: new Image({
@@ -81,30 +71,32 @@ app.intent("Run Workflow", (conv, { workflowName }) => {
 
 app.intent("Get Workflow List", conv => {
   const payload = conv.user.profile.payload;
-  const email = payload.email;
-  const code = crypto.publicEncrypt(PUBLICKEY, Buffer.from(email)).toString('base64')
-  console.log("my code: " + code)
-  console.log("resCode: " + res.data.code);
-  let code = res.data.code;
-  return fetch('https://maxflow.app/api/virtual-assistant', {
+  if (payload) {
+    const email = payload.email;
+    const code = crypto.publicEncrypt(PUBLICKEY, Buffer.from(email)).toString('base64');
+    console.log("my code: " + code);
+    return fetch('https://maxflow.app/api/virtual-assistant', {
       method: 'POST',
       headers: {
-          'Content-Type': 'application/json',
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-          "code": code
+        "code": code
       }),
-  })
+    })
       .then(response => response.json())
       .then(data => {
-          let list = data.data;
+        let list = data.data;
         let mesg = '';
-          list.forEach(i => mesg += i + ',');
-          conv.ask(mesg.substring(0, mesg.length-1)); 
+        list.forEach(i => mesg += i + ',');
+        conv.ask(mesg.substring(0, mesg.length - 1));
       })
       .catch((error) => {
-          console.error('Error:', error);
+        console.error('Error:', error);
       });
+  } else {
+    conv.ask(new SignIn('To get your account details'));
+  }
 });
 
 app.intent("Get Workflow Status", conv => {
