@@ -99,10 +99,34 @@ app.intent("Get Workflow List", conv => {
   }
 });
 
-app.intent("Get Workflow Status", conv => {
+app.intent("Get Workflow Status", (conv, { workflowName }) => {
   const payload = conv.user.profile.payload;
-  let email = payload.email;
-  conv.ask("success");
+  if (payload) {
+    const email = payload.email;
+    const code = crypto.publicEncrypt(PUBLICKEY, Buffer.from(email)).toString('base64');
+    console.log("my code: " + code);
+    return fetch('https://maxflow.app/api/virtual-assistant', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        "code": code
+      }),
+    })
+      .then(response => response.json())
+      .then(data => {
+        let list = data.data;
+        let mesg = '';
+        list.forEach(i => mesg += i + ',');
+        conv.ask(mesg.substring(0, mesg.length - 1));
+      })
+      .catch((error) => {
+        console.error('Error:', error);
+      });
+  } else {
+    conv.ask(new SignIn('To get your account details'));
+  }
 });
 
 exports.dialogflowFirebaseFulfillment = functions.https.onRequest(app);
