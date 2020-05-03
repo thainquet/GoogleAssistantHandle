@@ -21,6 +21,17 @@ const app = dialogflow({
 });
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 process.env.DEBUG = 'dialogflow:debug'; // enables lib debugging statements
+
+const getData = (URL, bodyRequest) => {
+  return fetch(URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: bodyRequest,
+  })
+}
+
 app.intent('Default Welcome Intent', (conv) => {
   // Do things
   const payload = conv.user.profile.payload;
