@@ -62,27 +62,27 @@ app.intent("Start Sign-in", (conv) => {
   }
 });
 
-app.intent("Show Me", (conv) => {
-  const payload = conv.user.profile.payload;
-  let { email, name, picture } = payload;
-  conv.ask(
-    new SimpleResponse({
-      speech: "This is your detail information",
-      text: "This is your detail information",
-    })
-  );
-  conv.ask(
-    new BasicCard({
-      text: `Email: ${email}\nName: ${name}`,
-      title: `Your Infomation`,
-      image: new Image({
-        url: picture,
-        alt: "Image alternate text",
-      }),
-      display: "CROPPED",
-    })
-  );
-});
+// app.intent("Show Me", (conv) => {
+//   const payload = conv.user.profile.payload;
+//   let { email, name, picture } = payload;
+//   conv.ask(
+//     new SimpleResponse({
+//       speech: "This is your detail information",
+//       text: "This is your detail information",
+//     })
+//   );
+//   conv.ask(
+//     new BasicCard({
+//       text: `Email: ${email}\nName: ${name}`,
+//       title: `Your Infomation`,
+//       image: new Image({
+//         url: picture,
+//         alt: "Image alternate text",
+//       }),
+//       display: "CROPPED",
+//     })
+//   );
+// });
 
 app.intent("Run Workflow", (conv, { workflowName }) => {
   const payload = conv.user.profile.payload;
@@ -116,7 +116,9 @@ app.intent("Run Workflow", (conv, { workflowName }) => {
 });
 
 app.intent("Default Fallback Intent", (conv) => {
-  conv.ask("Fallback");
+  conv.ask(
+    "Sorry, I don't know what you've just said. Please speak that again!"
+  );
 });
 
 app.intent("Get Workflow List", (conv) => {
@@ -172,7 +174,7 @@ app.intent("Get Workflow Status", (conv, { workflowName }) => {
     })
       .then((response) => response.json())
       .then((data) => {
-        console.log("data: " + data);
+        console.log(data);
         conv.ask("ok");
       })
       .catch((error) => {
