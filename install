@@ -1,0 +1,277 @@
+#!/bin/bash
+#######################################################
+# APICodes Bash Script for CentOS 7
+#######################################################
+yum -y install gawk bc wget lsof
+
+clear
+printf "=========================================================================\n"
+printf "We will check your VPS parameters to make the settings reasonable \n"
+printf "=========================================================================\n"
+
+cpu_name=$( awk -F: '/model name/ {name=$2} END {print name}' /proc/cpuinfo )
+cpu_cores=$( awk -F: '/model name/ {core++} END {print core}' /proc/cpuinfo )
+cpu_freq=$( awk -F: ' /cpu MHz/ {freq=$2} END {print freq}' /proc/cpuinfo )
+server_ram_total=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
+server_ram_mb=`echo "scale=0;$server_ram_total/1024" | bc`
+server_hdd=$( df -h | awk 'NR==2 {print $2}' )
+server_swap_total=$(awk '/SwapTotal/ {print $2}' /proc/meminfo)
+server_swap_mb=`echo "scale=0;$server_swap_total/1024" | bc`
+
+printf "=========================================================================\n"
+printf "Your server parameters are as follows \n"
+printf "=========================================================================\n"
+echo "CPU name : $cpu_name"
+echo "Total CPU core : $cpu_cores"
+echo "Speed per core : $cpu_freq MHz"
+echo "Total RAM : $server_ram_mb MB"
+echo "Total swap : $server_swap_mb MB"
+echo "Total disk space : $server_hdd GB"
+printf "=========================================================================\n"
+printf "=========================================================================\n"
+sleep 3
+
+printf "\nType your domain (non-www or www). Then press [ENTER]: " 
+read server_name
+
+printf "=========================================================================\n"
+printf "Prepare the installation process... \n"
+printf "=========================================================================\n"
+
+if [ -s /etc/selinux/config ]; then
+sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
+sed -i 's/SELINUX=permissive/SELINUX=disabled/g' /etc/selinux/config
+fi
+setenforce 0
+
+# Install EPEL + Remi Repo
+yum -y install epel-release yum-utils
+rpm -Uvh http://rpms.famillecollet.com/enterprise/remi-release-7.rpm
+
+# Install Nginx Repo
+rpm -Uvh http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm
+
+# Disable the FirewallD Service and use Iptables instead because FirewallD need reboot in order to start
+systemctl stop firewalld
+systemctl disable firewalld
+systemctl mask firewalld
+
+yum -y remove mysql* php* httpd* sendmail* postfix* rsyslog*
+yum clean all
+yum -y update
+
+clear
+printf "=========================================================================\n"
+printf "Preparing, start server setup... \n"
+printf "=========================================================================\n"
+sleep 3
+
+# Install Nginx, PHP-FPM and modules
+
+# Enable Remi Repo
+yum --enablerepo=remi,remi-php71 install -y nginx php-fpm php-common php-mcrypt php-gd php-pdo php-xml php-mbstring php-curl php-devel php-cli gcc
+
+# Install Others
+yum -y install unzip zip nano openssl iptables-services
+
+clear
+printf "=========================================================================\n"
+printf "Installation is complete, start server configuration... \n"
+printf "=========================================================================\n"
+sleep 3
+
+# Autostart
+systemctl enable nginx.service
+systemctl enable php-fpm.service
+systemctl enable iptables.service
+systemctl enable ip6tables.service
+
+mkdir -p /home/$server_name/public_html
+mkdir /home/$server_name/logs
+chmod 777 /home/$server_name/logs
+
+mkdir -p /var/log/nginx
+chown -R nginx:nginx /var/log/nginx
+
+systemctl start nginx.service
+systemctl start iptables.service
+systemctl start ip6tables.service
+
+# Nginx Config #
+cat > "/etc/nginx/nginx.conf" <<END
+
+user  nginx;
+worker_processes  $cpu_cores;
+worker_rlimit_nofile 260000;
+
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+events {
+	worker_connections  2048;
+	accept_mutex off;
+	accept_mutex_delay 200ms;
+	use epoll;
+	#multi_accept on;
+}
+
+http {
+	include       /etc/nginx/mime.types;
+	default_type  application/octet-stream;
+
+	log_format  main  '\$remote_addr - \$remote_user [\$time_local] "\$request" '
+	              '\$status \$body_bytes_sent "\$http_referer" '
+	              '"\$http_user_agent" "\$http_x_forwarded_for"';
+
+	#Disable IFRAME
+	#add_header X-Frame-Options SAMEORIGIN;
+	
+	#Prevent Cross-site scripting (XSS) attacks
+	add_header X-XSS-Protection "1; mode=block";
+	
+	#Prevent MIME-sniffing
+	add_header X-Content-Type-Options nosniff;
+	
+	access_log  off;
+	sendfile on;
+	tcp_nopush on;
+	tcp_nodelay off;
+	types_hash_max_size 2048;
+	server_tokens off;
+	server_names_hash_bucket_size 128;
+	client_max_body_size 0;
+	client_body_buffer_size 256k;
+	client_body_in_file_only off;
+	client_body_timeout 60s;
+	client_header_buffer_size 256k;
+	client_header_timeout  20s;
+	large_client_header_buffers 8 256k;
+	keepalive_timeout 10;
+	keepalive_disable msie6;
+	reset_timedout_connection on;
+	send_timeout 60s;
+	
+	gzip on;
+	gzip_static on;
+	gzip_disable "msie6";
+	gzip_vary on;
+	gzip_proxied any;
+	gzip_comp_level 6;
+	gzip_buffers 16 8k;
+	gzip_http_version 1.1;
+	gzip_types text/plain text/css application/json text/javascript application/javascript text/xml application/xml application/xml+rss;
+
+	include /etc/nginx/conf.d/*.conf;
+}
+END
+
+cat > "/home/$server_name/public_html/index.html" <<END
+<html>
+<head><title>Welcome to nginx!</title></head>
+<body bgcolor="white">
+<center><h1>Welcome to APICodes!</h1></center>
+</body>
+</html>
+END
+
+cat > "/usr/share/nginx/html/403.html" <<END
+<html>
+<head><title>403 Forbidden</title></head>
+<body bgcolor="white">
+<center><h1>403 Forbidden</h1></center>
+<hr><center>apicodes-nginx</center>
+</body>
+</html>
+END
+
+cat > "/usr/share/nginx/html/404.html" <<END
+<html>
+<head><title>404 Not Found</title></head>
+<body bgcolor="white">
+<center><h1>404 Not Found</h1></center>
+<hr><center>apicodes-nginx</center>
+</body>
+</html>
+END
+
+rm -rf /etc/nginx/conf.d/*
+> /etc/nginx/conf.d/default.conf
+
+server_name_alias="www.$server_name"
+if [[ $server_name == *www* ]]; then
+    server_name_alias=${server_name/www./''}
+fi
+
+
+cat > "/etc/nginx/conf.d/$server_name.conf" <<END
+server {
+	listen 80;
+	server_name $server_name_alias;
+	rewrite ^(.*) http://$server_name\$1 permanent;
+}
+
+server {
+	listen 80;
+	
+	#SSL
+	#listen 443 ssl http2;
+	#ssl on;
+	#ssl_certificate /etc/ssl/certificate.pem;
+	#ssl_certificate_key /etc/ssl/privatekey.pem;
+  
+	# access_log off;
+	access_log /home/$server_name/logs/access.log;
+	# error_log off;
+    	error_log /home/$server_name/logs/error.log;
+	
+    	root /home/$server_name/public_html;
+	index index.php index.html index.htm;
+    	server_name $server_name;
+ 
+    	location / {
+		try_files \$uri \$uri/ /index.php?\$args;
+	}
+	
+	# Custom configuration
+	include /home/$server_name/public_html/*.conf;
+ 
+    	location ~ \.php$ {
+		fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        	include /etc/nginx/fastcgi_params;
+        	fastcgi_pass 127.0.0.1:9000;
+        	fastcgi_index index.php;
+		fastcgi_connect_timeout 1000;
+		fastcgi_send_timeout 1000;
+		fastcgi_read_timeout 1000;
+		fastcgi_buffer_size 256k;
+		fastcgi_buffers 4 256k;
+		fastcgi_busy_buffers_size 256k;
+		fastcgi_temp_file_write_size 256k;
+		fastcgi_intercept_errors on;
+        	fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+    	}
+}
+END
+
+systemctl restart nginx.service
+
+# Open port
+if [ -f /etc/sysconfig/iptables ]; then
+	iptables -I INPUT -p tcp --dport 80 -j ACCEPT
+	iptables -I INPUT -p tcp --dport 25 -j ACCEPT
+	iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+	iptables -I INPUT -p tcp --dport 465 -j ACCEPT
+	iptables -I INPUT -p tcp --dport 587 -j ACCEPT
+	iptables -I INPUT -p tcp --dport 22 -j ACCEPT
+	service iptables save
+fi
+
+chown nginx:nginx /home/$server_name
+chown -R nginx:nginx /home/*/public_html
+rm -f /root/install
+echo -n "cd /home" >> /root/.bashrc
+service php-fpm restart
+printf "=========================================================================\n"
+printf "Complete installation. Now you can upload our source to your server!!!\n\n"
+sleep 3
+exit
